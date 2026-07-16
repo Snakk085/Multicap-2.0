@@ -23,13 +23,19 @@
 </head>
 <body>
 
-<!-- Tela de Login -->
+<!-- Tela de Login/Cadastro -->
 <div id="login-screen">
-    <h2>Multicap Login</h2>
-    <input type="email" id="email" placeholder="Seu e-mail">
+    <h2 id="auth-title">Acessar Multicap</h2>
+    
+    <input type="text" id="username" placeholder="Nome de usuário">
     <input type="password" id="password" placeholder="Sua senha">
-    <button onclick="handleLogin()" style="width: 100%; padding: 12px; background: #04d361; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Entrar</button>
-    <p style="margin-top: 15px; font-size: 12px; cursor: pointer; color: #8d8d99;" onclick="toggleRegister()">Criar conta gratuita</p>
+    
+    <!-- Botão Dinâmico -->
+    <button id="auth-btn" onclick="processAuth()" style="width: 100%; padding: 12px; background: #04d361; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px;">Entrar</button>
+    
+    <p id="toggle-text" style="margin-top: 15px; font-size: 14px; cursor: pointer; color: #8d8d99;">
+        Não tem conta? <span onclick="toggleMode()" style="color: #04d361; font-weight: bold;">Criar conta</span>
+    </p>
 </div>
 
 <!-- Dashboard (Oculto por padrão) -->
@@ -39,6 +45,44 @@
 </div>
 
 <script>
+
+let isRegisterMode = false;
+
+function toggleMode() {
+    isRegisterMode = !isRegisterMode;
+    const title = document.getElementById('auth-title');
+    const btn = document.getElementById('auth-btn');
+    const toggleText = document.getElementById('toggle-text');
+
+    if (isRegisterMode) {
+        title.innerText = "Criar conta";
+        btn.innerText = "Cadastrar";
+        toggleText.innerHTML = 'Já tem conta? <span onclick="toggleMode()" style="color: #04d361; font-weight: bold;">Entrar</span>';
+    } else {
+        title.innerText = "Acessar Multicap";
+        btn.innerText = "Entrar";
+        toggleText.innerHTML = 'Não tem conta? <span onclick="toggleMode()" style="color: #04d361; font-weight: bold;">Criar conta</span>';
+    }
+}
+
+function processAuth() {
+    const user = document.getElementById('username').value;
+    const pass = document.getElementById('password').value;
+
+    if (isRegisterMode) {
+        console.log("Enviando cadastro para o servidor:", user, pass);
+        // Aqui chamaremos a rota POST /register em breve
+    } else {
+        console.log("Enviando login para o servidor:", user, pass);
+        // Aqui chamaremos a rota POST /login em breve
+        
+        // Simulação de sucesso (remover depois)
+        document.getElementById('login-screen').classList.add('hidden');
+        document.getElementById('dashboard-screen').classList.remove('hidden');
+        fetchTransactions();
+    }
+}
+
     function handleLogin() {
         // Por enquanto, apenas troca a tela sem verificar senha
         document.getElementById('login-screen').classList.add('hidden');
