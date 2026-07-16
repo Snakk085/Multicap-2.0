@@ -1,46 +1,73 @@
 const express = require('express');
 const cors = require('cors');
 const { Pool } = require('pg');
+const bcrypt = require('bcrypt');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('Public')); // Entrega o seu site Front-end
+app.use(express.static('public'));
 
-// 1. Conexão com o Banco de Dados em Nuvem (PostgreSQL)
+// 1. Configuração do Banco de Dados (PostgreSQL)
+// NÃO ESQUEÇA DE TROCAR A URL ABAIXO PELA SUA DO NEON!
 const pool = new Pool({
     connectionString: 'postgresql://neondb_owner:npg_7n6bjWqCtSHT@ep-young-mountain-awolalo3-pooler.c-12.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
     ssl: { rejectUnauthorized: false }
 });
 
-// 2. Cria a tabela (em Postgres, o Auto Incremento se chama SERIAL)
-pool.query(`CREATE TABLE IF NOT EXISTS transactions (
-    id SERIAL PRIMARY KEY,
-    "desc" TEXT,
-    amount REAL,
-    type TEXT,
-    category TEXT,
-    date TEXT
-)`).then(() => console.log('Tabela verificada no PostgreSQL na nuvem.'))
-  .catch(err => console.error('Erro ao criar tabela:', err));
+// 2. Rotas de Usuário (Registro e Login)
+const saltRounds = 10;
 
-// 3. Rota GET: Puxa os dados da Nuvem
-app.get('/api/transactions', async (req, res) => {
+app.post('/api/register', async (req, res) => {
+    const { username, password } = req.body;
     try {
-        const result = await pool.query('SELECT * FROM transactions ORDER BY date DESC');
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+        await pool.query('INSERT INTO users (username, password) VALUES ($1, $2)', [username, hashedPassword]);
+        res.status(201).json({ message: "Usuário criado!" });
+    } catch (err) {
+        res.status(500).json({ error: "Erro ao criar usuário (nome já existe)." });
+    }
+});
+
+app.post('/api/login', async (req, res) => {
+    const { username, password } = req.body;
+    try {
+        const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+        if (result.rows.length === 0) return res.status(401).json({ error: "Usuário não encontrado." });
+        
+        const user = result.rows[0];
+        const match = await bcrypt.compare(password, user.password);
+        
+        if (match) {
+            res.json({ message: "Login realizado!", userId: user.id });
+        } else {
+            res.status(401).json({ error: "Senha incorreta." });
+        }
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// 3. Rotas de Transações (AGORA COM FILTRO DE USUÁRIO)
+
+// Busca apenas as transações do usuário logado
+app.get('/api/transactions/:userId', async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const result = await pool.query('SELECT * FROM transactions WHERE user_id = $1 ORDER BY date DESC', [userId]);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// 4. Rota POST: Salva novos dados na Nuvem
+// Salva transação já vinculada ao usuário
 app.post('/api/transactions', async (req, res) => {
-    const { desc, amount, type, category, date } = req.body;
+    const { desc, amount, type, category, date, userId } = req.body;
     try {
         const result = await pool.query(
-            'INSERT INTO transactions ("desc", amount, type, category, date) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [desc, amount, type, category, date]
+            'INSERT INTO transactions ("desc", amount, type, category, date, user_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [desc, amount, type, category, date, userId]
         );
         res.json(result.rows[0]);
     } catch (err) {
@@ -48,7 +75,6 @@ app.post('/api/transactions', async (req, res) => {
     }
 });
 
-// 5. Rota DELETE: Apaga os dados
 app.delete('/api/transactions/:id', async (req, res) => {
     try {
         await pool.query('DELETE FROM transactions WHERE id = $1', [req.params.id]);
@@ -58,8 +84,7 @@ app.delete('/api/transactions/:id', async (req, res) => {
     }
 });
 
-// 6. Inicia o Servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Servidor Full Stack rodando na porta ${PORT}`);
+    console.log(`Servidor rodando na porta ${PORT}`);
 });

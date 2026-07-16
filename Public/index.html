@@ -3,99 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multicap Login</title>
+    <title>Multicap - Controle Financeiro</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        /* Estilos base mantidos (Dark Mode) */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background-color: #121214; color: #e1e1e6; min-height: 100vh; display: flex; justify-content: center; align-items: center; }
-        
-        /* Estilos da Tela de Login */
-        #login-screen { width: 100%; max-width: 400px; background: #202024; padding: 30px; border-radius: 12px; border: 1px solid #323238; text-align: center; }
         .hidden { display: none !important; }
+        
+        /* Login Screen */
+        #login-screen { width: 100%; max-width: 400px; background: #202024; padding: 30px; border-radius: 12px; border: 1px solid #323238; text-align: center; }
         h2 { color: #04d361; margin-bottom: 20px; }
         input { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #323238; background: #121214; color: white; }
+        button { width: 100%; padding: 12px; background: #04d361; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; color: #121214; }
         
-        /* Dashboard (Oculto inicialmente) */
+        /* Dashboard */
         #dashboard-screen { width: 100%; max-width: 1000px; padding: 20px; }
-        /* (Aqui você mantém o restante do seu CSS do Dashboard original) */
+        .dashboard { display: flex; gap: 20px; margin-bottom: 30px; }
+        .card { background: #202024; padding: 20px; border-radius: 12px; flex: 1; border: 1px solid #323238; }
     </style>
 </head>
 <body>
 
-<!-- Tela de Login/Cadastro -->
+<!-- Tela de Login -->
 <div id="login-screen">
     <h2 id="auth-title">Acessar Multicap</h2>
-    
-    <input type="text" id="username" placeholder="Nome de usuário">
-    <input type="password" id="password" placeholder="Sua senha">
-    
-    <!-- Botão Dinâmico -->
-    <button id="auth-btn" onclick="processAuth()" style="width: 100%; padding: 12px; background: #04d361; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px;">Entrar</button>
-    
-    <p id="toggle-text" style="margin-top: 15px; font-size: 14px; cursor: pointer; color: #8d8d99;">
-        Não tem conta? <span onclick="toggleMode()" style="color: #04d361; font-weight: bold;">Criar conta</span>
+    <input type="text" id="username" placeholder="Usuário">
+    <input type="password" id="password" placeholder="Senha">
+    <button id="auth-btn" onclick="processAuth()">Entrar</button>
+    <p style="margin-top: 15px; font-size: 14px; color: #8d8d99;">
+        <span id="toggle-text" onclick="toggleMode()" style="color: #04d361; cursor: pointer; font-weight: bold;">Criar conta</span>
     </p>
 </div>
 
-<!-- Dashboard (Oculto por padrão) -->
+<!-- Dashboard -->
 <div id="dashboard-screen" class="hidden">
     <h1>Dashboard Financeiro</h1>
-    <!-- (Aqui entra todo o seu HTML do Dashboard que já estava funcionando) -->
+    <button onclick="logout()" style="background: #f75a68; color: white; width: 100px; margin-bottom: 10px;">Sair</button>
+    <div class="dashboard">
+        <div class="card"><h3>Entradas</h3><p id="total-income">R$ 0,00</p></div>
+        <div class="card"><h3>Saídas</h3><p id="total-expense">R$ 0,00</p></div>
+    </div>
+    <form id="transaction-form">
+        <input type="text" id="desc" placeholder="Descrição" required>
+        <input type="number" id="amount" placeholder="Valor" required>
+        <input type="date" id="date" required>
+        <select id="type"><option value="income">Receita</option><option value="expense">Despesa</option></select>
+        <select id="category">
+            <option value="Gastos Fixos">Gasto Fixo</option>
+            <option value="Assinaturas">Assinaturas</option>
+            <option value="Gastos Variáveis">Variável</option>
+        </select>
+        <button type="submit">Adicionar</button>
+    </form>
+    <ul id="transaction-list"></ul>
 </div>
 
 <script>
+    let isRegisterMode = false;
+    const API_URL = '/api';
 
-let isRegisterMode = false;
-
-function toggleMode() {
-    isRegisterMode = !isRegisterMode;
-    const title = document.getElementById('auth-title');
-    const btn = document.getElementById('auth-btn');
-    const toggleText = document.getElementById('toggle-text');
-
-    if (isRegisterMode) {
-        title.innerText = "Criar conta";
-        btn.innerText = "Cadastrar";
-        toggleText.innerHTML = 'Já tem conta? <span onclick="toggleMode()" style="color: #04d361; font-weight: bold;">Entrar</span>';
-    } else {
-        title.innerText = "Acessar Multicap";
-        btn.innerText = "Entrar";
-        toggleText.innerHTML = 'Não tem conta? <span onclick="toggleMode()" style="color: #04d361; font-weight: bold;">Criar conta</span>';
+    function toggleMode() {
+        isRegisterMode = !isRegisterMode;
+        document.getElementById('auth-title').innerText = isRegisterMode ? "Criar conta" : "Acessar Multicap";
+        document.getElementById('auth-btn').innerText = isRegisterMode ? "Cadastrar" : "Entrar";
+        document.getElementById('toggle-text').innerText = isRegisterMode ? "Já tem conta? Entrar" : "Criar conta";
     }
-}
 
-function processAuth() {
-    const user = document.getElementById('username').value;
-    const pass = document.getElementById('password').value;
+    async function processAuth() {
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const endpoint = isRegisterMode ? '/register' : '/login';
 
-    if (isRegisterMode) {
-        console.log("Enviando cadastro para o servidor:", user, pass);
-        // Aqui chamaremos a rota POST /register em breve
-    } else {
-        console.log("Enviando login para o servidor:", user, pass);
-        // Aqui chamaremos a rota POST /login em breve
-        
-        // Simulação de sucesso (remover depois)
-        document.getElementById('login-screen').classList.add('hidden');
-        document.getElementById('dashboard-screen').classList.remove('hidden');
+        const res = await fetch(API_URL + endpoint, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ username, password })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+            if (!isRegisterMode) {
+                localStorage.setItem('userId', data.userId);
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('dashboard-screen').classList.remove('hidden');
+                fetchTransactions(data.userId);
+            } else { alert("Conta criada! Agora faça login."); toggleMode(); }
+        } else { alert(data.error); }
+    }
+
+    function logout() {
+        localStorage.removeItem('userId');
+        location.reload();
+    }
+
+    async function fetchTransactions(userId = localStorage.getItem('userId')) {
+        if(!userId) return;
+        const res = await fetch(`${API_URL}/transactions/${userId}`);
+        const transactions = await res.json();
+        // Renderize a lista aqui (código de render omitido para brevidade, reutilize o seu anterior)
+    }
+
+    document.getElementById('transaction-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const userId = localStorage.getItem('userId');
+        const data = {
+            desc: document.getElementById('desc').value,
+            amount: parseFloat(document.getElementById('amount').value),
+            date: document.getElementById('date').value,
+            type: document.getElementById('type').value,
+            category: document.getElementById('category').value,
+            userId
+        };
+        await fetch(API_URL + '/transactions', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify(data) 
+        });
         fetchTransactions();
-    }
-}
-
-    function handleLogin() {
-        // Por enquanto, apenas troca a tela sem verificar senha
-        document.getElementById('login-screen').classList.add('hidden');
-        document.getElementById('dashboard-screen').classList.remove('hidden');
-        fetchTransactions(); // Carrega os dados ao logar
-    }
-
-    function toggleRegister() {
-        alert("Navegando para tela de cadastro...");
-    }
-
-    // (Aqui você mantém o resto do seu JS original de busca de transações)
+    });
 </script>
-
 </body>
 </html>
