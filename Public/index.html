@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multicap Web</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', 'Segoe UI', sans-serif; }
+        body { background-color: #121214; color: #e1e1e6; padding: 20px; display: flex; justify-content: center; }
+        .app-container { width: 100%; max-width: 1000px; display: flex; flex-direction: column; gap: 20px; }
+        h1 { color: #04d361; text-align: center; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; font-size: 24px; }
+        
+        /* Cards Superiores */
+        .dashboard { display: flex; gap: 20px; flex-wrap: wrap; }
+        .card { background: #202024; padding: 20px; border-radius: 12px; flex: 1; min-width: 200px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); border: 1px solid #323238; }
+        .card h3 { font-size: 14px; color: #8d8d99; font-weight: normal; margin-bottom: 8px; }
+        .card p { font-size: 28px; font-weight: bold; }
+        .income { color: #04d361; }
+        .expense { color: #f75a68; }
+
+        /* Área do Meio (Formulário e Gráfico) */
+        .middle-section { display: flex; gap: 20px; flex-wrap: wrap; }
+        .form-container, .chart-container { background: #202024; padding: 20px; border-radius: 12px; border: 1px solid #323238; flex: 1; min-width: 300px; }
+        
+        .form-group { display: flex; flex-direction: column; gap: 12px; }
+        input, select, button { padding: 12px; border-radius: 6px; border: 1px solid #323238; background: #121214; color: #e1e1e6; font-size: 14px; outline: none; transition: 0.2s; }
+        input:focus, select:focus { border-color: #04d361; }
+        button { background: #04d361; color: #121214; font-weight: bold; border: none; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
+        button:hover { background: #03b252; transform: translateY(-2px); }
+
+        /* Histórico */
+        .history-container { background: #202024; padding: 20px; border-radius: 12px; border: 1px solid #323238; }
+        ul { list-style: none; margin-top: 15px; }
+        li { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #323238; background: #29292e; margin-bottom: 8px; border-radius: 8px; }
+        .list-income { border-left: 6px solid #04d361; }
+        .list-expense { border-left: 6px solid #f75a68; }
+        
+        .item-info { display: flex; flex-direction: column; gap: 4px; }
+        .item-title { font-weight: bold; font-size: 16px; }
+        .item-meta { font-size: 12px; color: #8d8d99; }
+        .item-category { background: #323238; padding: 2px 6px; border-radius: 4px; color: #c4c4cc; font-size: 11px; margin-right: 8px; }
+        
+        .item-value { font-weight: bold; font-size: 16px; display: flex; align-items: center; gap: 15px; }
+        .delete-btn { background: transparent; color: #f75a68; padding: 5px; border: 1px solid #f75a68; cursor: pointer; width: 30px; height: 30px; border-radius: 4px; display: flex; justify-content: center; align-items: center; }
+        .delete-btn:hover { background: #f75a68; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <h1>Multicap Dashboard</h1>
+
+    <div class="dashboard">
+        <div class="card">
+            <h3>Entradas</h3>
+            <p class="income" id="total-income">R$ 0,00</p>
+        </div>
+        <div class="card">
+            <h3>Saídas</h3>
+            <p class="expense" id="total-expense">R$ 0,00</p>
+        </div>
+        <div class="card">
+            <h3>Saldo Livre</h3>
+            <p id="total-balance">R$ 0,00</p>
+        </div>
+    </div>
+
+    <div class="middle-section">
+        <div class="form-container">
+            <h3 style="margin-bottom: 15px; color: #e1e1e6;">Novo Registro</h3>
+            <form id="transaction-form" class="form-group">
+                <input type="text" id="desc" placeholder="Descrição (ex: Netflix, Mercado)" required>
+                <input type="number" id="amount" placeholder="Valor (R$)" step="0.01" required>
+                <input type="date" id="date" required>
+                
+                <select id="type" onchange="updateCategories()">
+                    <option value="expense">Despesa (-)</option>
+                    <option value="income">Receita (+)</option>
+                </select>
+
+                <select id="category" required>
+                    <!-- As opções mudam via JS dependendo se é receita ou despesa -->
+                </select>
+
+                <button type="submit">Adicionar Transação</button>
+            </form>
+        </div>
+        
+        <div class="chart-container" style="display: flex; justify-content: center; align-items: center; position: relative;">
+            <canvas id="expenseChart" style="max-height: 250px;"></canvas>
+        </div>
+    </div>
+
+    <div class="history-container">
+        <h3 style="color: #e1e1e6;">Histórico de Movimentações</h3>
+        <ul id="transaction-list"></ul>
+    </div>
+</div>
+
+<script>
+    // Se for hospedar, troque 'localhost' pela URL do seu servidor online depois
+    const API_URL = '/api/transactions';
+    let transactions = [];
+    let myChart = null;
+
+    // Coloca a data de hoje como padrão no input
+    document.getElementById('date').valueAsDate = new Date();
+
+    function updateCategories() {
+        const type = document.getElementById('type').value;
+        const categorySelect = document.getElementById('category');
+        categorySelect.innerHTML = '';
+
+        if (type === 'expense') {
+            categorySelect.innerHTML = `
+                <option value="Gastos Fixos">Gasto Fixo (Aluguel, Luz)</option>
+                <option value="Assinaturas">Assinaturas (Netflix, Spotify)</option>
+                <option value="Gastos Variáveis">Gasto Variável (Lazer, Compras)</option>
+            `;
+        } else {
+            categorySelect.innerHTML = `
+                <option value="Salário">Salário</option>
+                <option value="Renda Extra">Renda Extra / Freelance</option>
+                <option value="Rendimentos">Rendimentos</option>
+            `;
+        }
+    }
+    updateCategories(); // Roda ao iniciar
+
+    async function fetchTransactions() {
+        const res = await fetch(API_URL);
+        transactions = await res.json();
+        render();
+    }
+
+    async function addTransaction(e) {
+        e.preventDefault();
+        const data = {
+            desc: document.getElementById('desc').value,
+            amount: parseFloat(document.getElementById('amount').value),
+            date: document.getElementById('date').value,
+            type: document.getElementById('type').value,
+            category: document.getElementById('category').value
+        };
+
+        await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+        document.getElementById('desc').value = '';
+        document.getElementById('amount').value = '';
+        fetchTransactions();
+    }
+
+    async function removeTransaction(id) {
+        await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+        fetchTransactions();
+    }
+
+    function render() {
+        const list = document.getElementById('transaction-list');
+        list.innerHTML = '';
+        
+        let totalIncome = 0; let totalExpense = 0;
+        let chartData = { fixo: 0, assinatura: 0, variavel: 0 };
+
+        transactions.forEach(t => {
+            const dateStr = new Date(t.date + 'T00:00:00').toLocaleDateString('pt-BR');
+            
+            if (t.type === 'income') {
+                totalIncome += t.amount;
+            } else {
+                totalExpense += t.amount;
+                if (t.category === 'Gastos Fixos') chartData.fixo += t.amount;
+                if (t.category === 'Assinaturas') chartData.assinatura += t.amount;
+                if (t.category === 'Gastos Variáveis') chartData.variavel += t.amount;
+            }
+
+            const li = document.createElement('li');
+            li.classList.add(t.type === 'income' ? 'list-income' : 'list-expense');
+            li.innerHTML = `
+                <div class="item-info">
+                    <span class="item-title">${t.desc}</span>
+                    <span class="item-meta">
+                        <span class="item-category">${t.category}</span> ${dateStr}
+                    </span>
+                </div>
+                <div class="item-value">
+                    R$ ${t.amount.toFixed(2)}
+                    <button class="delete-btn" onclick="removeTransaction(${t.id})">✖</button>
+                </div>
+            `;
+            list.appendChild(li);
+        });
+
+        const balance = totalIncome - totalExpense;
+        document.getElementById('total-income').innerText = `R$ ${totalIncome.toFixed(2)}`;
+        document.getElementById('total-expense').innerText = `R$ ${totalExpense.toFixed(2)}`;
+        document.getElementById('total-balance').innerText = `R$ ${balance.toFixed(2)}`;
+        document.getElementById('total-balance').style.color = balance >= 0 ? '#04d361' : '#f75a68';
+
+        updateChart(chartData, totalIncome);
+    }
+
+    function updateChart(data, income) {
+        const ctx = document.getElementById('expenseChart').getContext('2d');
+        
+        // Calcula a porcentagem do consumo da renda
+        const getPct = (val) => income > 0 ? ((val / income) * 100).toFixed(1) : 0;
+
+        if (myChart) myChart.destroy(); // Apaga o gráfico antigo antes de desenhar o novo
+        
+        myChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: [
+                    `Fixos (${getPct(data.fixo)}%)`, 
+                    `Assinaturas (${getPct(data.assinatura)}%)`, 
+                    `Variáveis (${getPct(data.variavel)}%)`
+                ],
+                datasets: [{
+                    data: [data.fixo, data.assinatura, data.variavel],
+                    backgroundColor: ['#3b82f6', '#8b5cf6', '#f59e0b'],
+                    borderColor: '#202024',
+                    borderWidth: 4
+                }]
+            },
+            options: { 
+                responsive: true, 
+                plugins: { 
+                    legend: { position: 'bottom', labels: { color: '#e1e1e6' } },
+                    tooltip: { callbacks: { label: (ctx) => ` R$ ${ctx.raw.toFixed(2)}` } }
+                } 
+            }
+        });
+    }
+
+    document.getElementById('transaction-form').addEventListener('submit', addTransaction);
+    fetchTransactions();
+</script>
+</body>
+</html>
