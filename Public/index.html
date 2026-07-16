@@ -100,6 +100,33 @@
         if(!userId) return;
         const res = await fetch(`${API_URL}/transactions/${userId}`);
         const transactions = await res.json();
+        
+        function render(transactions) {
+        const list = document.getElementById('transaction-list');
+        list.innerHTML = '';
+        let totalIncome = 0;
+        let totalExpense = 0;
+
+        transactions.forEach(t => {
+            if (t.type === 'income') totalIncome += parseFloat(t.amount);
+            else totalExpense += parseFloat(t.amount);
+
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <div class="item-info">
+                    <span class="item-title">${t.desc}</span>
+                    <span class="item-meta">${t.category} - ${t.date}</span>
+                </div>
+                <div class="item-value">R$ ${parseFloat(t.amount).toFixed(2)} 
+                    <button class="delete-btn" onclick="removeTransaction(${t.id})">✖</button>
+                </div>
+            `;
+            list.appendChild(li);
+        });
+
+        document.getElementById('total-income').innerText = `R$ ${totalIncome.toFixed(2)}`;
+        document.getElementById('total-expense').innerText = `R$ ${totalExpense.toFixed(2)}`;
+    }
         // Renderize a lista aqui (código de render omitido para brevidade, reutilize o seu anterior)
     }
 
