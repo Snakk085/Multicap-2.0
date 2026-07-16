@@ -1,52 +1,65 @@
 const express = require('express');
 const cors = require('cors');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static('public')); // Entrega o seu site Front-end
 
-const db = new sqlite3.Database('./banco.sqlite', (err) => {
-    if (err) console.error(err.message);
-    console.log('Banco de dados conectado.');
+// 1. Conexão com o Banco de Dados em Nuvem (PostgreSQL)
+const pool = new Pool({
+    connectionString: 'postgresql://neondb_owner:npg_7n6bjWqCtSHT@ep-young-mountain-awolalo3-pooler.c-12.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require',
+    ssl: { rejectUnauthorized: false }
 });
 
-// A tabela agora tem 'category' e 'date'
-db.run(`CREATE TABLE IF NOT EXISTS transactions (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    desc TEXT,
+// 2. Cria a tabela (em Postgres, o Auto Incremento se chama SERIAL)
+pool.query(`CREATE TABLE IF NOT EXISTS transactions (
+    id SERIAL PRIMARY KEY,
+    "desc" TEXT,
     amount REAL,
     type TEXT,
     category TEXT,
     date TEXT
-)`);
+)`).then(() => console.log('Tabela verificada no PostgreSQL na nuvem.'))
+  .catch(err => console.error('Erro ao criar tabela:', err));
 
-app.get('/api/transactions', (req, res) => {
-    db.all('SELECT * FROM transactions ORDER BY date DESC', [], (err, rows) => {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json(rows);
-    });
+// 3. Rota GET: Puxa os dados da Nuvem
+app.get('/api/transactions', async (req, res) => {
+    try {
+        const result = await pool.query('SELECT * FROM transactions ORDER BY date DESC');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
-app.post('/api/transactions', (req, res) => {
+// 4. Rota POST: Salva novos dados na Nuvem
+app.post('/api/transactions', async (req, res) => {
     const { desc, amount, type, category, date } = req.body;
-    db.run('INSERT INTO transactions (desc, amount, type, category, date) VALUES (?, ?, ?, ?, ?)', 
-        [desc, amount, type, category, date], function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ id: this.lastID, desc, amount, type, category, date });
-    });
+    try {
+        const result = await pool.query(
+            'INSERT INTO transactions ("desc", amount, type, category, date) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+            [desc, amount, type, category, date]
+        );
+        res.json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
-app.delete('/api/transactions/:id', (req, res) => {
-    db.run('DELETE FROM transactions WHERE id = ?', req.params.id, function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ deleted: this.changes });
-    });
+// 5. Rota DELETE: Apaga os dados
+app.delete('/api/transactions/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM transactions WHERE id = $1', [req.params.id]);
+        res.json({ deleted: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
-// process.env.PORT é fundamental para hospedar na internet
+// 6. Inicia o Servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(\`Servidor rodando na porta \${PORT}\`);
+    console.log(`Servidor Full Stack rodando na porta ${PORT}`);
 });
