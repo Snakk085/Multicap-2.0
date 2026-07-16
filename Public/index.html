@@ -4,126 +4,187 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multicap - Controle Financeiro</title>
+    <!-- Importação do Gráfico -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-       * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-body { background-color: #121214; color: #e1e1e6; min-height: 100vh; display: flex; justify-content: center; align-items: center; }
-.hidden { display: none !important; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: #121214; color: #e1e1e6; min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .hidden { display: none !important; }
 
-#login-screen, #dashboard-screen { width: 100%; max-width: 500px; background: #202024; padding: 30px; border-radius: 12px; border: 1px solid #323238; }
+        /* Telas */
+        #login-screen, #dashboard-screen { width: 100%; max-width: 500px; background: #202024; padding: 40px; border-radius: 12px; border: 1px solid #323238; }
+        #dashboard-screen { max-width: 800px; } /* Dashboard um pouco mais largo */
 
-/* Dashboard */
-.dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-.card { background: #121214; padding: 15px; border-radius: 8px; border: 1px solid #323238; text-align: center; }
+        /* Estilos do Login */
+        #login-screen { text-align: center; }
+        #login-screen h2 { color: #04d361; margin-bottom: 30px; }
+        
+        /* Inputs e Botões (Ocupando 100% para ficarem um embaixo do outro) */
+        input, select { width: 100%; display: block; padding: 14px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #323238; background: #121214; color: white; }
+        button { width: 100%; padding: 14px; background: #04d361; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: #121214; transition: 0.2s; }
+        button:hover { background: #04b355; }
+        
+        .link-text { margin-top: 20px; font-size: 14px; color: #8d8d99; }
+        .link-text span { color: #04d361; cursor: pointer; font-weight: bold; }
 
-/* Formulário */
-form { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
-input, select { padding: 12px; border-radius: 6px; border: 1px solid #323238; background: #121214; color: white; }
-button { padding: 12px; background: #04d361; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; color: #000; transition: 0.2s; }
-button:hover { background: #04b355; }
-.btn-sair { background: #f75a68; color: white; padding: 8px 15px; }
+        /* Cabeçalho do Dashboard */
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .btn-sair { background: #f75a68; color: white; width: auto; padding: 8px 16px; }
+        .btn-sair:hover { background: #e04855; }
 
-/* Lista */
-ul { list-style: none; }
-li { background: #121214; padding: 10px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; border: 1px solid #323238; }
+        /* Cards Lado a Lado */
+        .cards { display: flex; gap: 20px; margin-bottom: 30px; }
+        .card { flex: 1; padding: 20px; border-radius: 8px; border: 1px solid #323238; text-align: center; }
+        .card-income { background: rgba(4, 211, 97, 0.05); border-color: rgba(4, 211, 97, 0.3); }
+        .card-expense { background: rgba(247, 90, 104, 0.05); border-color: rgba(247, 90, 104, 0.3); }
+        .card h3 { font-size: 14px; color: #8d8d99; margin-bottom: 10px; font-weight: 500; }
+        .card p { font-size: 24px; font-weight: bold; }
+        #total-income { color: #04d361; }
+        #total-expense { color: #f75a68; }
+
+        /* Container do Gráfico */
+        .chart-container { background: #121214; padding: 20px; border-radius: 8px; margin-bottom: 30px; border: 1px solid #323238; height: 250px; }
+
+        /* Lista de Transações */
+        ul { list-style: none; }
+        li { background: #121214; padding: 15px; border-radius: 6px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #323238; }
+        .item-info { display: flex; flex-direction: column; }
+        .item-title { font-weight: bold; }
+        .item-meta { font-size: 12px; color: #8d8d99; margin-top: 5px; }
+        .item-value { font-weight: bold; display: flex; align-items: center; gap: 15px; }
+        .val-income { color: #04d361; }
+        .val-expense { color: #f75a68; }
+        .delete-btn { background: transparent; color: #8d8d99; padding: 5px; width: auto; font-size: 16px; }
+        .delete-btn:hover { color: #f75a68; background: transparent; }
+
+        @media (max-width: 600px) {
+            .cards { flex-direction: column; }
+        }
     </style>
 </head>
 <body>
 
-<!-- Tela de Login -->
+<!-- TELA DE LOGIN -->
 <div id="login-screen">
     <h2 id="auth-title">Acessar Multicap</h2>
+    
     <input type="text" id="username" placeholder="Usuário">
     <input type="password" id="password" placeholder="Senha">
+    
     <button id="auth-btn" onclick="processAuth()">Entrar</button>
-    <p style="margin-top: 15px; font-size: 14px; color: #8d8d99;">
-        <span id="toggle-text" onclick="toggleMode()" style="color: #04d361; cursor: pointer; font-weight: bold;">Criar conta</span>
+    
+    <p class="link-text">
+        <span id="toggle-text" onclick="toggleMode()">Criar conta</span>
     </p>
 </div>
 
-<!-- Dashboard -->
+<!-- TELA DO DASHBOARD -->
 <div id="dashboard-screen" class="hidden">
-    <h1>Dashboard Financeiro</h1>
-    <button onclick="logout()" style="background: #f75a68; color: white; width: 100px; margin-bottom: 10px;">Sair</button>
-    <div class="dashboard">
-        <div class="card"><h3>Entradas</h3><p id="total-income">R$ 0,00</p></div>
-        <div class="card"><h3>Saídas</h3><p id="total-expense">R$ 0,00</p></div>
+    <div class="dashboard-header">
+        <h2>Dashboard Financeiro</h2>
+        <button onclick="logout()" class="btn-sair">Sair</button>
     </div>
+
+    <div class="cards">
+        <div class="card card-income">
+            <h3>Entradas</h3>
+            <p id="total-income">R$ 0,00</p>
+        </div>
+        <div class="card card-expense">
+            <h3>Saídas</h3>
+            <p id="total-expense">R$ 0,00</p>
+        </div>
+    </div>
+
+    <!-- Gráfico -->
+    <div class="chart-container">
+        <canvas id="financeChart"></canvas>
+    </div>
+
+    <!-- Formulário -->
     <form id="transaction-form">
-        <input type="text" id="desc" placeholder="Descrição" required>
-        <input type="number" id="amount" placeholder="Valor" required>
+        <input type="text" id="desc" placeholder="Descrição (Ex: Salário, Netflix)" required>
+        <input type="number" id="amount" placeholder="Valor (Ex: 150.00)" step="0.01" required>
         <input type="date" id="date" required>
+        
         <select id="type">
-            <option value="income">Receita</option>
-            <option value="expense">Despesa</option>
+            <option value="income">Receita (Entrada)</option>
+            <option value="expense">Despesa (Saída)</option>
         </select>
-        <select id="category">
-            <option value="Gastos Fixos">Gasto Fixo</option>
-            <option value="Assinaturas">Assinaturas</option>
-            <option value="Gastos Variáveis">Variável</option>
-        </select>
-        <button type="submit">Adicionar</button>
+        
+        <select id="category"></select>
+        
+        <button type="submit">Adicionar Transação</button>
     </form>
+
     <ul id="transaction-list"></ul>
 </div>
 
 <script>
-
-// Dicionário de categorias
-const categories = {
-    income: ['Salário', 'Freelance', 'Investimento', 'Venda', 'Outros'],
-    expense: ['Gasto Fixo', 'Assinaturas', 'Lazer', 'Alimentação', 'Transporte']
-};
-
-// Função para atualizar o select
-function updateCategories() {
-    const type = document.getElementById('type').value;
-    const catSelect = document.getElementById('category');
-    catSelect.innerHTML = ''; // Limpa as opções atuais
-
-    categories[type].forEach(cat => {
-        const option = document.createElement('option');
-        option.value = cat;
-        option.innerText = cat;
-        catSelect.appendChild(option);
-    });
-}
-
-// Adiciona o evento de mudança (chame essa função ao carregar a página também)
-document.getElementById('type').addEventListener('change', updateCategories);
-updateCategories(); // Chama uma vez para iniciar certo
-
-    let isRegisterMode = false;
     const API_URL = '/api';
+    let isRegisterMode = false;
+    let chartInstance = null; // Variável para guardar o gráfico e conseguir atualizá-lo
 
+    // 1. Lógica de Categorias Dinâmicas
+    const categories = {
+        income: ['Salário', 'Freelance', 'Investimento', 'Venda', 'Outros'],
+        expense: ['Gasto Fixo', 'Assinaturas', 'Lazer', 'Alimentação', 'Transporte']
+    };
+
+    function updateCategories() {
+        const type = document.getElementById('type').value;
+        const catSelect = document.getElementById('category');
+        catSelect.innerHTML = ''; 
+        categories[type].forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat;
+            option.innerText = cat;
+            catSelect.appendChild(option);
+        });
+    }
+    document.getElementById('type').addEventListener('change', updateCategories);
+    updateCategories(); // Inicia com as categorias corretas
+
+    // 2. Lógica de Autenticação (Login/Cadastro)
     function toggleMode() {
         isRegisterMode = !isRegisterMode;
-        document.getElementById('auth-title').innerText = isRegisterMode ? "Criar conta" : "Acessar Multicap";
+        document.getElementById('auth-title').innerText = isRegisterMode ? "Criar nova conta" : "Acessar Multicap";
         document.getElementById('auth-btn').innerText = isRegisterMode ? "Cadastrar" : "Entrar";
-        document.getElementById('toggle-text').innerText = isRegisterMode ? "Já tem conta? Entrar" : "Criar conta";
+        document.getElementById('toggle-text').innerText = isRegisterMode ? "Já tem conta? Fazer Login" : "Criar conta";
     }
 
     async function processAuth() {
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
+        
+        if(!username || !password) return alert("Preencha usuário e senha!");
+
         const endpoint = isRegisterMode ? '/register' : '/login';
 
-        const res = await fetch(API_URL + endpoint, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ username, password })
-        });
+        try {
+            const res = await fetch(API_URL + endpoint, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
 
-        const data = await res.json();
-        if (res.ok) {
-            if (!isRegisterMode) {
-                localStorage.setItem('userId', data.userId);
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('dashboard-screen').classList.remove('hidden');
-                fetchTransactions(data.userId);
-            } else { alert("Conta criada! Agora faça login."); toggleMode(); }
-        } else { alert(data.error); }
+            if (res.ok) {
+                if (!isRegisterMode) {
+                    localStorage.setItem('userId', data.userId);
+                    document.getElementById('login-screen').classList.add('hidden');
+                    document.getElementById('dashboard-screen').classList.remove('hidden');
+                    fetchTransactions();
+                } else { 
+                    alert("Conta criada com sucesso! Agora faça login."); 
+                    toggleMode(); 
+                }
+            } else { 
+                alert(data.error); 
+            }
+        } catch(e) {
+            alert("Erro ao comunicar com o servidor.");
+        }
     }
 
     function logout() {
@@ -131,38 +192,22 @@ updateCategories(); // Chama uma vez para iniciar certo
         location.reload();
     }
 
-    async function fetchTransactions(userId = localStorage.getItem('userId')) {
+    // Mantém logado se atualizar a página
+    window.onload = () => {
+        if(localStorage.getItem('userId')) {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('dashboard-screen').classList.remove('hidden');
+            fetchTransactions();
+        }
+    }
+
+    // 3. Lógica do Banco de Dados (Transações)
+    async function fetchTransactions() {
+        const userId = localStorage.getItem('userId');
         if(!userId) return;
         const res = await fetch(`${API_URL}/transactions/${userId}`);
         const transactions = await res.json();
-
-        function render(transactions) {
-        const list = document.getElementById('transaction-list');
-        list.innerHTML = '';
-        let totalIncome = 0;
-        let totalExpense = 0;
-
-        transactions.forEach(t => {
-            if (t.type === 'income') totalIncome += parseFloat(t.amount);
-            else totalExpense += parseFloat(t.amount);
-
-            const li = document.createElement('li');
-            li.innerHTML = `
-                <div class="item-info">
-                    <span class="item-title">${t.desc}</span>
-                    <span class="item-meta">${t.category} - ${t.date}</span>
-                </div>
-                <div class="item-value">R$ ${parseFloat(t.amount).toFixed(2)} 
-                    <button class="delete-btn" onclick="removeTransaction(${t.id})">✖</button>
-                </div>
-            `;
-            list.appendChild(li);
-        });
-
-        document.getElementById('total-income').innerText = `R$ ${totalIncome.toFixed(2)}`;
-        document.getElementById('total-expense').innerText = `R$ ${totalExpense.toFixed(2)}`;
-    }
-        // Renderize a lista aqui (código de render omitido para brevidade, reutilize o seu anterior)
+        render(transactions);
     }
 
     document.getElementById('transaction-form').addEventListener('submit', async (e) => {
@@ -181,8 +226,88 @@ updateCategories(); // Chama uma vez para iniciar certo
             headers: {'Content-Type': 'application/json'}, 
             body: JSON.stringify(data) 
         });
-        fetchTransactions();
+        
+        document.getElementById('transaction-form').reset();
+        updateCategories();
+        fetchTransactions(); // Recarrega tudo (inclusive atualiza valores)
     });
+
+    async function removeTransaction(id) {
+        await fetch(`${API_URL}/transactions/${id}`, { method: 'DELETE' });
+        fetchTransactions(); // Recarrega os valores e o gráfico após apagar
+    }
+
+    // 4. Renderização da Tela e do Gráfico
+    function render(transactions) {
+        const list = document.getElementById('transaction-list');
+        list.innerHTML = '';
+        
+        let totalIncome = 0;
+        let totalExpense = 0;
+
+        transactions.forEach(t => {
+            const amount = parseFloat(t.amount);
+            if (t.type === 'income') totalIncome += amount;
+            else totalExpense += amount;
+
+            const isIncome = t.type === 'income';
+            const valClass = isIncome ? 'val-income' : 'val-expense';
+            const signal = isIncome ? '+' : '-';
+            // Formata a data de AAAA-MM-DD para DD/MM/AAAA
+            const dataFormatada = t.date.split('-').reverse().join('/');
+
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <div class="item-info">
+                    <span class="item-title">${t.desc}</span>
+                    <span class="item-meta">${t.category} | ${dataFormatada}</span>
+                </div>
+                <div class="item-value">
+                    <span class="${valClass}">${signal} R$ ${amount.toFixed(2)}</span>
+                    <button class="delete-btn" onclick="removeTransaction(${t.id})" title="Apagar transação">✖</button>
+                </div>
+            `;
+            list.appendChild(li);
+        });
+
+        // Atualiza os Textos dos Cards
+        document.getElementById('total-income').innerText = `R$ ${totalIncome.toFixed(2)}`;
+        document.getElementById('total-expense').innerText = `R$ ${totalExpense.toFixed(2)}`;
+
+        // Atualiza o Gráfico
+        renderChart(totalIncome, totalExpense);
+    }
+
+    function renderChart(income, expense) {
+        const ctx = document.getElementById('financeChart').getContext('2d');
+        
+        // Destrói o gráfico antigo antes de criar um novo (evita bugar a tela)
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        // Só desenha se houver algum valor
+        if (income === 0 && expense === 0) return;
+
+        chartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Entradas', 'Saídas'],
+                datasets: [{
+                    data: [income, expense],
+                    backgroundColor: ['#04d361', '#f75a68'],
+                    borderWidth: 0 // Remove a borda branca padrão do gráfico
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right', labels: { color: '#e1e1e6' } }
+                }
+            }
+        });
+    }
 </script>
 </body>
 </html>
