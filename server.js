@@ -5,7 +5,7 @@ const { Pool } = require('pg');
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public')); // Entrega o seu site Front-end
+app.use(express.static('Public')); // Entrega o seu site Front-end
 
 // 1. Conexão com o Banco de Dados em Nuvem (PostgreSQL)
 const pool = new Pool({
