@@ -6,7 +6,7 @@ const bcrypt = require('bcrypt');
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public'));
+app.use(express.static('Public'));
 
 // 1. Configuração do Banco de Dados (PostgreSQL)
 // NÃO ESQUEÇA DE TROCAR A URL ABAIXO PELA SUA DO NEON!
